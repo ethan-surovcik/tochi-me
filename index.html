@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>tochi me</title>
+    <meta name="description" content="stitch your face onto a tochi" />
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🐣</text></svg>" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@700;800;900&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+    <header>
+        <h1>tochi me</h1>
+        <p>stitch your face onto a tochi. your pocket sidekick, but it's you</p>
+    </header>
+
+    <main>
+        <div class="stage" id="stage">
+            <canvas id="c" width="1080" height="1080"></canvas>
+            <div class="drophint" id="drophint">drop it right here</div>
+        </div>
+
+        <section class="controls">
+            <div class="row">
+                <label class="btn primary" for="file">upload a face</label>
+                <input type="file" id="file" accept="image/*" hidden />
+                <button class="btn" id="demo">try a sample face</button>
+                <button class="btn dark" id="download">download sticker</button>
+            </div>
+
+            <div class="group">
+                <span class="label">zoom</span>
+                <input type="range" id="zoom" min="1" max="3" step="0.01" value="1.15" />
+                <span class="hint">drag the photo to reposition</span>
+            </div>
+
+            <div class="group">
+                <span class="label">backdrop</span>
+                <div class="swatches" id="bgs"></div>
+            </div>
+
+            <div class="group">
+                <span class="label">chick</span>
+                <div class="swatches" id="chicks"></div>
+            </div>
+        </section>
+    </main>
+
+    <footer>made in one hour for the pocket sidekick hackathon · 🐣 from snackpass</footer>
+
+    <script src="app.js"></script>
+</body>
+</html>
