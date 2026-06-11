@@ -1,12 +1,9 @@
-const SIZE = 1080;
-// face hole in canvas px — must match the mask circle in the svg (cx 300 cy 240 r 115 in a 600 viewbox)
-const HOLE = { x: 540, y: 432, r: 207 };
-const GROUND = { x: 540, y: 1010 };
-// wing shoulder pivots, canvas px (local 600-box coords × 1.8)
-const PIVOT_L = { x: 221, y: 569 };
-const PIVOT_R = { x: 859, y: 569 };
+import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js";
 
-const canvas = document.getElementById("c");
+const SIZE = 1080;
+
+const canvas = document.getElementById("c"); // animated scene (2d)
+const glCanvas = document.getElementById("g"); // 3d chick overlay
 const ctx = canvas.getContext("2d");
 const stage = document.getElementById("stage");
 
@@ -17,7 +14,7 @@ const VARIANTS = [
         id: "peach",
         css: "#ffb35c",
         c: {
-            hi: "#ffd9a0", body: "#ffb35c", shade: "#f2924a", lo: "#d9743b",
+            hi: "#ffd9a0", body: "#ffb35c", shade: "#f2924a",
             crest: "#ffe6bc", belly: "#ffb3c8", bellyHi: "#ffd3df", wing: "#f2a04e",
             beak: "#f08a3c", beakDark: "#d2691e", feet: "#efa0c6",
             stitch: "#c9742e", patch: "#ffe0b0"
@@ -27,7 +24,7 @@ const VARIANTS = [
         id: "lavender",
         css: "#c5b4f0",
         c: {
-            hi: "#e6dcfc", body: "#c5b4f0", shade: "#a796dd", lo: "#8674bf",
+            hi: "#e6dcfc", body: "#c5b4f0", shade: "#a796dd",
             crest: "#f2a7c6", belly: "#e9d9fa", bellyHi: "#f5ecfd", wing: "#b4a2e6",
             beak: "#f08a3c", beakDark: "#d2691e", feet: "#f08a3c",
             stitch: "#9c6fd0", patch: "#e4d6fa"
@@ -37,7 +34,7 @@ const VARIANTS = [
         id: "golden",
         css: "#ffc83d",
         c: {
-            hi: "#ffe27a", body: "#ffc83d", shade: "#efa42f", lo: "#c97f1a",
+            hi: "#ffe27a", body: "#ffc83d", shade: "#efa42f",
             crest: "#ffe9a8", belly: "#ffb9ce", bellyHi: "#ffd5e1", wing: "#efa42f",
             beak: "#f08a3c", beakDark: "#c9601c", feet: "#f08a3c",
             stitch: "#b96e12", patch: "#ffdf86"
@@ -47,7 +44,7 @@ const VARIANTS = [
         id: "matcha",
         css: "#9fe0bd",
         c: {
-            hi: "#d6f5e3", body: "#9fe0bd", shade: "#74c99b", lo: "#4fa87c",
+            hi: "#d6f5e3", body: "#9fe0bd", shade: "#74c99b",
             crest: "#d6f5e3", belly: "#ffcfe0", bellyHi: "#ffe3ec", wing: "#74c99b",
             beak: "#f08a3c", beakDark: "#c9601c", feet: "#f08a3c",
             stitch: "#3f9a72", patch: "#cdf2de"
@@ -55,108 +52,7 @@ const VARIANTS = [
     }
 ];
 
-// pear-shaped tochi silhouette: round head flowing into wide hips
-const BODY_PATH =
-    "M300,65 C210,65 148,130 148,215 C148,280 120,330 112,415 " +
-    "C108,505 195,560 300,560 C405,560 492,505 488,415 " +
-    "C480,330 452,280 452,215 C452,130 390,65 300,65 Z";
-
-function bodySVG(c) {
-    return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 600">
-<defs>
-    <radialGradient id="bodyGrad" cx="40%" cy="22%" r="92%">
-        <stop offset="0%" stop-color="${c.hi}"/>
-        <stop offset="45%" stop-color="${c.body}"/>
-        <stop offset="100%" stop-color="${c.shade}"/>
-    </radialGradient>
-    <radialGradient id="vig" cx="50%" cy="44%" r="60%">
-        <stop offset="72%" stop-color="${c.lo}" stop-opacity="0"/>
-        <stop offset="100%" stop-color="${c.lo}" stop-opacity="0.32"/>
-    </radialGradient>
-    <linearGradient id="bellyG" x1="0" y1="0" x2="0" y2="1">
-        <stop offset="0%" stop-color="${c.bellyHi}"/>
-        <stop offset="100%" stop-color="${c.belly}"/>
-    </linearGradient>
-    <linearGradient id="crestGrad" x1="0" y1="0" x2="0" y2="1">
-        <stop offset="0%" stop-color="${c.crest}"/>
-        <stop offset="100%" stop-color="${c.body}"/>
-    </linearGradient>
-    <radialGradient id="hiBlob">
-        <stop offset="0%" stop-color="#ffffff" stop-opacity="0.5"/>
-        <stop offset="100%" stop-color="#ffffff" stop-opacity="0"/>
-    </radialGradient>
-    <linearGradient id="beakGrad" x1="0" y1="0" x2="0" y2="1">
-        <stop offset="0%" stop-color="${c.beak}"/>
-        <stop offset="100%" stop-color="${c.beakDark}"/>
-    </linearGradient>
-    <mask id="faceHole">
-        <rect width="600" height="600" fill="white"/>
-        <circle cx="300" cy="240" r="115" fill="black"/>
-    </mask>
-    <clipPath id="bodyClip">
-        <path d="${BODY_PATH}"/>
-    </clipPath>
-</defs>
-
-<!-- toed feet peeking out under the body -->
-<path d="M222,564 Q252,548 282,564 Q292,580 278,588 Q266,580 256,590 Q246,580 236,590 Q222,580 222,564 Z" fill="${c.feet}"/>
-<path d="M318,564 Q348,548 378,564 Q378,580 364,590 Q354,580 344,590 Q334,580 322,588 Q308,580 318,564 Z" fill="${c.feet}"/>
-
-<!-- swoopy pompadour crest -->
-<path d="M250,108 C190,78 182,18 234,10 C270,5 288,55 282,102 Z" fill="url(#crestGrad)"/>
-<path d="M286,98 C258,30 296,-14 338,0 C376,14 354,72 322,102 Z" fill="url(#crestGrad)"/>
-<path d="M322,102 C342,42 400,32 420,58 C436,80 394,110 348,116 Z" fill="url(#crestGrad)"/>
-
-<!-- body with the face hole cut out -->
-<g mask="url(#faceHole)">
-    <path d="${BODY_PATH}" fill="url(#bodyGrad)"/>
-    <path d="M95,450 Q145,372 195,427 Q245,374 300,427 Q355,374 405,427 Q455,372 505,450 L505,600 L95,600 Z"
-        fill="url(#bellyG)" clip-path="url(#bodyClip)"/>
-    <ellipse cx="195" cy="140" rx="85" ry="55" fill="url(#hiBlob)" transform="rotate(-30 195 140)"/>
-    <path d="${BODY_PATH}" fill="url(#vig)"/>
-</g>
-
-<!-- fluffy cheek tufts, tucked under the patch ring -->
-<g fill="${c.crest}">
-    <ellipse cx="158" cy="284" rx="34" ry="17" transform="rotate(-32 158 284)"/>
-    <ellipse cx="148" cy="314" rx="36" ry="18" transform="rotate(-8 148 314)"/>
-    <ellipse cx="158" cy="344" rx="32" ry="16" transform="rotate(16 158 344)"/>
-    <ellipse cx="442" cy="284" rx="34" ry="17" transform="rotate(32 442 284)"/>
-    <ellipse cx="452" cy="314" rx="36" ry="18" transform="rotate(8 452 314)"/>
-    <ellipse cx="442" cy="344" rx="32" ry="16" transform="rotate(-16 442 344)"/>
-</g>
-
-<!-- stitched patch ring around the hole, with a soft bevel shadow -->
-<circle cx="300" cy="245" r="126" fill="none" stroke="rgba(0,0,0,0.12)" stroke-width="22"/>
-<circle cx="300" cy="240" r="126" fill="none" stroke="${c.patch}" stroke-width="20"/>
-<circle cx="300" cy="240" r="126" fill="none" stroke="${c.stitch}" stroke-width="6"
-    stroke-dasharray="16 18" stroke-linecap="round"/>
-
-<!-- 3d two-part beak, worn over the face -->
-<path d="M300,328 C324,328 342,344 339,358 C336,370 318,376 300,376 C282,376 264,370 261,358 C258,344 276,328 300,328 Z"
-    fill="url(#beakGrad)"/>
-<ellipse cx="300" cy="374" rx="22" ry="10" fill="${c.beakDark}"/>
-<ellipse cx="288" cy="344" rx="11" ry="6" fill="#ffffff" opacity="0.45" transform="rotate(-18 288 344)"/>
-</svg>`;
-}
-
-function wingSVG(c, side) {
-    const path =
-        side === "l"
-            ? "M123,316 C66,328 38,426 70,476 C85,497 119,476 132,420 C141,376 140,336 123,316 Z"
-            : "M477,316 C534,328 562,426 530,476 C515,497 481,476 468,420 C459,376 460,336 477,316 Z";
-    return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 600">
-<defs>
-    <radialGradient id="wg" cx="40%" cy="25%" r="90%">
-        <stop offset="0%" stop-color="${c.body}"/>
-        <stop offset="100%" stop-color="${c.wing}"/>
-    </radialGradient>
-</defs>
-<path d="${path}" fill="url(#wg)"/>
-</svg>`;
-}
-
-// ---------- animated scenes ----------
+// ---------- animated scenes (2d background layer) ----------
 
 function seeded(seed) {
     let s = seed;
@@ -171,7 +67,6 @@ function hash(n) {
     return x - Math.floor(x);
 }
 
-// app-style floating bokeh dots, slowly rising
 function bokeh(g, t, seed) {
     const rand = seeded(seed);
     for (let i = 0; i < 12; i++) {
@@ -348,133 +243,250 @@ const state = {
     view: { x: 0, y: 0, zoom: 1.15 },
     backdrop: BACKDROPS[0],
     variant: VARIANTS[0],
-    parts: null,
     dancing: false
 };
 
 let danceStart = 0;
+let tiltTarget = 0;
+let tilt = 0;
 
-// ---------- chick loading ----------
+// ---------- three.js scene ----------
 
-function svgToImage(svg) {
-    return new Promise((resolve) => {
-        const url = URL.createObjectURL(new Blob([svg], { type: "image/svg+xml" }));
-        const img = new Image();
-        img.onload = () => {
-            URL.revokeObjectURL(url);
-            resolve(img);
-        };
-        img.src = url;
-    });
-}
+const renderer = new THREE.WebGLRenderer({
+    canvas: glCanvas,
+    alpha: true,
+    antialias: true,
+    preserveDrawingBuffer: true
+});
+renderer.setSize(SIZE, SIZE, false);
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.05;
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 
-async function loadChicken() {
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(30, 1, 0.1, 50);
+camera.position.set(0, 1.6, 7.0);
+camera.lookAt(0, 1.12, 0);
+
+scene.add(new THREE.AmbientLight(0xffffff, 0.55));
+const hemi = new THREE.HemisphereLight(0xffffff, 0xffd9c0, 0.5);
+scene.add(hemi);
+const key = new THREE.DirectionalLight(0xffffff, 1.6);
+key.position.set(2.5, 5, 4);
+key.castShadow = true;
+key.shadow.mapSize.set(1024, 1024);
+key.shadow.bias = -0.002;
+key.shadow.radius = 6;
+scene.add(key);
+const fill = new THREE.DirectionalLight(0xbfe5ff, 0.4);
+fill.position.set(-3, 2, 2);
+scene.add(fill);
+
+// pedestal — the little white stage every tochi stands on
+const pedestal = new THREE.Mesh(
+    new THREE.CylinderGeometry(1.32, 1.42, 0.14, 64),
+    new THREE.MeshStandardMaterial({ color: 0xf5f8fa, roughness: 0.85 })
+);
+pedestal.position.y = -0.07;
+pedestal.receiveShadow = true;
+scene.add(pedestal);
+
+// chick root — origin at foot level so hops/squash anchor on the ground
+const root = new THREE.Group();
+scene.add(root);
+
+// face texture: stitched patch ring + the photo, redrawn on demand
+const FACE_PX = 512;
+const PHOTO_R = 219; // photo radius inside the 256-radius face disc
+const faceCanvas = document.createElement("canvas");
+faceCanvas.width = faceCanvas.height = FACE_PX;
+const faceCtx = faceCanvas.getContext("2d");
+const faceTexture = new THREE.CanvasTexture(faceCanvas);
+faceTexture.colorSpace = THREE.SRGBColorSpace;
+
+function drawFace() {
+    const g = faceCtx;
     const c = state.variant.c;
-    const [body, wingL, wingR] = await Promise.all([
-        svgToImage(bodySVG(c)),
-        svgToImage(wingSVG(c, "l")),
-        svgToImage(wingSVG(c, "r"))
-    ]);
-    state.parts = { body, wingL, wingR };
+    const half = FACE_PX / 2;
+    // patch ring
+    g.fillStyle = c.patch;
+    g.beginPath();
+    g.arc(half, half, half, 0, Math.PI * 2);
+    g.fill();
+    // stitches
+    g.strokeStyle = c.stitch;
+    g.lineWidth = 11;
+    g.lineCap = "round";
+    g.setLineDash([26, 22]);
+    g.beginPath();
+    g.arc(half, half, (PHOTO_R + half) / 2, 0, Math.PI * 2);
+    g.stroke();
+    g.setLineDash([]);
+    // photo window
+    g.save();
+    g.beginPath();
+    g.arc(half, half, PHOTO_R, 0, Math.PI * 2);
+    g.clip();
+    if (state.photo) {
+        const p = state.photo;
+        const base = (PHOTO_R * 2) / Math.min(p.width, p.height);
+        const s = base * state.view.zoom;
+        const w = p.width * s;
+        const h = p.height * s;
+        const k = PHOTO_R / 207; // ui drag offsets are in 1080-canvas px
+        g.drawImage(p, half - w / 2 + state.view.x * k, half - h / 2 + state.view.y * k, w, h);
+    } else {
+        g.fillStyle = "#fff2d4";
+        g.fillRect(0, 0, FACE_PX, FACE_PX);
+        g.fillStyle = "#c79c4e";
+        g.font = "800 52px Nunito, system-ui, sans-serif";
+        g.textAlign = "center";
+        g.fillText("your face", half, half - 26);
+        g.fillText("goes here", half, half + 38);
+    }
+    g.restore();
+    faceTexture.needsUpdate = true;
 }
 
-// ---------- pose + rendering ----------
+// chick body — pear profile lathe with a baked scalloped-belly texture
+function bodyTexture(c) {
+    const tc = document.createElement("canvas");
+    tc.width = tc.height = 512;
+    const g = tc.getContext("2d");
+    const grad = g.createLinearGradient(0, 0, 0, 512);
+    grad.addColorStop(0, c.hi);
+    grad.addColorStop(0.45, c.body);
+    grad.addColorStop(1, c.shade);
+    g.fillStyle = grad;
+    g.fillRect(0, 0, 512, 512);
+    // scalloped belly band (low v = bottom of the mesh = bottom of texture)
+    const top = 285;
+    const bg = g.createLinearGradient(0, top, 0, 512);
+    bg.addColorStop(0, c.bellyHi);
+    bg.addColorStop(1, c.belly);
+    g.fillStyle = bg;
+    g.beginPath();
+    g.moveTo(0, 512);
+    for (let x = 0; x <= 512; x += 4) {
+        g.lineTo(x, top + 16 * Math.sin((x / 512) * Math.PI * 2 * 6));
+    }
+    g.lineTo(512, 512);
+    g.closePath();
+    g.fill();
+    const tex = new THREE.CanvasTexture(tc);
+    tex.colorSpace = THREE.SRGBColorSpace;
+    return tex;
+}
 
-const REST = { hop: 0, sx: 1, sy: 1, sway: 0, flap: 0.04 };
+const PROFILE = [
+    [0.0, 0.0], [0.5, 0.04], [0.78, 0.3], [0.88, 0.75], [0.84, 1.05],
+    [0.72, 1.35], [0.64, 1.6], [0.6, 1.85], [0.5, 2.1], [0.32, 2.28], [0.0, 2.36]
+].map(([x, y]) => new THREE.Vector2(x, y));
+
+let chickMats = [];
+const chickParts = new THREE.Group();
+root.add(chickParts);
+let wingLGroup, wingRGroup;
+
+function buildChick() {
+    chickParts.clear();
+    chickMats.forEach((m) => m.dispose());
+    chickMats = [];
+    const c = state.variant.c;
+
+    const mat = (color, opts = {}) => {
+        const m = new THREE.MeshStandardMaterial({ color, roughness: 0.92, ...opts });
+        chickMats.push(m);
+        return m;
+    };
+
+    const bodyMat = mat(0xffffff, { map: bodyTexture(c) });
+    const body = new THREE.Mesh(new THREE.LatheGeometry(PROFILE, 64), bodyMat);
+    body.castShadow = true;
+    chickParts.add(body);
+
+    const blob = (material, x, y, z, sx, sy, sz, rz = 0, rx = 0) => {
+        const m = new THREE.Mesh(new THREE.SphereGeometry(1, 32, 24), material);
+        m.position.set(x, y, z);
+        m.scale.set(sx, sy, sz);
+        m.rotation.z = rz;
+        m.rotation.x = rx;
+        m.castShadow = true;
+        return m;
+    };
+
+    const crestMat = mat(c.crest);
+    // swoopy pompadour, leaning right like the real renders
+    chickParts.add(blob(crestMat, -0.16, 2.42, 0, 0.16, 0.34, 0.12, -0.5));
+    chickParts.add(blob(crestMat, 0.04, 2.52, 0, 0.18, 0.42, 0.13, -0.1));
+    chickParts.add(blob(crestMat, 0.26, 2.42, 0, 0.17, 0.34, 0.12, 0.55));
+
+    // cheek fluff beside the face
+    chickParts.add(blob(crestMat, -0.64, 1.58, 0.36, 0.17, 0.3, 0.12, -0.45));
+    chickParts.add(blob(crestMat, 0.64, 1.58, 0.36, 0.17, 0.3, 0.12, 0.45));
+
+    // wings on pivot groups so they can flap
+    const wingMat = mat(c.wing);
+    wingLGroup = new THREE.Group();
+    wingLGroup.position.set(-0.78, 1.3, 0);
+    wingLGroup.add(blob(wingMat, -0.1, -0.42, 0, 0.2, 0.5, 0.13, -0.25));
+    chickParts.add(wingLGroup);
+    wingRGroup = new THREE.Group();
+    wingRGroup.position.set(0.78, 1.3, 0);
+    wingRGroup.add(blob(wingMat, 0.1, -0.42, 0, 0.2, 0.5, 0.13, 0.25));
+    chickParts.add(wingRGroup);
+
+    // feet
+    const feetMat = mat(c.feet);
+    chickParts.add(blob(feetMat, -0.3, 0.04, 0.3, 0.17, 0.07, 0.24));
+    chickParts.add(blob(feetMat, 0.3, 0.04, 0.3, 0.17, 0.07, 0.24));
+
+    // face disc with the stitched photo, slightly proud of the head
+    const faceMat = new THREE.MeshBasicMaterial({ map: faceTexture });
+    chickMats.push(faceMat);
+    const face = new THREE.Mesh(new THREE.CircleGeometry(0.58, 64), faceMat);
+    face.position.set(0, 1.68, 0.68);
+    face.rotation.x = -0.06;
+    chickParts.add(face);
+
+    // 3d two-part beak below the face window
+    const beakMat = mat(c.beak, { roughness: 0.7 });
+    const beak = new THREE.Mesh(new THREE.ConeGeometry(0.16, 0.26, 32), beakMat);
+    beak.rotation.x = Math.PI / 2 - 0.12;
+    beak.scale.y = 0.9;
+    beak.scale.x = 1.25;
+    beak.position.set(0, 1.1, 0.92);
+    beak.castShadow = true;
+    chickParts.add(beak);
+    const lipMat = mat(c.beakDark, { roughness: 0.7 });
+    chickParts.add(blob(lipMat, 0, 1.0, 0.88, 0.13, 0.05, 0.1));
+
+    drawFace();
+}
+
+// ---------- pose + render loop ----------
 
 function poseAt(t) {
-    const beat = t * 2.1; // hops per second
+    const beat = t * 2.1;
     const hn = Math.abs(Math.sin(beat * Math.PI)); // 0 on the ground, 1 mid-air
     const sy = 0.93 + 0.1 * hn;
     return {
-        hop: hn * 52,
+        hop: hn * 0.16,
         sx: 1 + (1 - sy) * 0.9,
         sy,
-        sway: 0.055 * Math.sin(beat * Math.PI),
-        flap: 0.1 + 0.55 * hn
+        sway: 0.07 * Math.sin(beat * Math.PI),
+        flap: 0.12 + 0.85 * hn
     };
-}
-
-function drawPedestal(hn) {
-    // the little white stage every tochi stands on
-    ctx.fillStyle = "rgba(0,0,0,0.08)";
-    ctx.beginPath();
-    ctx.ellipse(GROUND.x, 1042, 330, 28, 0, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.fillStyle = "#dde5ea";
-    ctx.beginPath();
-    ctx.ellipse(GROUND.x, 1022, 312, 46, 0, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.fillStyle = "#f5f8fa";
-    ctx.beginPath();
-    ctx.ellipse(GROUND.x, 1012, 312, 44, 0, 0, Math.PI * 2);
-    ctx.fill();
-    // chick's shadow on the pedestal, shrinking while airborne
-    ctx.fillStyle = `rgba(80,100,120,${0.16 - hn * 0.07})`;
-    ctx.beginPath();
-    ctx.ellipse(GROUND.x, 1012, 200 * (1 - hn * 0.25), 24 * (1 - hn * 0.25), 0, 0, Math.PI * 2);
-    ctx.fill();
 }
 
 function render() {
     const t = performance.now() / 1000;
-    const pose = state.dancing ? poseAt(t - danceStart) : REST;
 
     state.backdrop.paint(ctx, t);
-    drawPedestal(pose.hop / 52);
 
-    // whole-chick dance transform, anchored at the ground point
-    ctx.save();
-    ctx.translate(GROUND.x, GROUND.y - pose.hop);
-    ctx.rotate(pose.sway);
-    ctx.scale(pose.sx, pose.sy);
-    ctx.translate(-GROUND.x, -GROUND.y);
-
-    if (state.parts) {
-        // wings flap around their shoulder pivots
-        ctx.save();
-        ctx.translate(PIVOT_L.x, PIVOT_L.y);
-        ctx.rotate(pose.flap);
-        ctx.translate(-PIVOT_L.x, -PIVOT_L.y);
-        ctx.drawImage(state.parts.wingL, 0, 0, SIZE, SIZE);
-        ctx.restore();
-        ctx.save();
-        ctx.translate(PIVOT_R.x, PIVOT_R.y);
-        ctx.rotate(-pose.flap);
-        ctx.translate(-PIVOT_R.x, -PIVOT_R.y);
-        ctx.drawImage(state.parts.wingR, 0, 0, SIZE, SIZE);
-        ctx.restore();
-    }
-
-    // photo (or placeholder) inside the face hole — rides along with the dance
-    ctx.save();
-    ctx.beginPath();
-    ctx.arc(HOLE.x, HOLE.y, HOLE.r, 0, Math.PI * 2);
-    ctx.clip();
-    if (state.photo) {
-        const p = state.photo;
-        const base = (HOLE.r * 2) / Math.min(p.width, p.height);
-        const s = base * state.view.zoom;
-        const w = p.width * s;
-        const h = p.height * s;
-        ctx.drawImage(p, HOLE.x - w / 2 + state.view.x, HOLE.y - h / 2 + state.view.y, w, h);
-    } else {
-        ctx.fillStyle = "#fff2d4";
-        ctx.fillRect(HOLE.x - HOLE.r, HOLE.y - HOLE.r, HOLE.r * 2, HOLE.r * 2);
-        ctx.fillStyle = "#c79c4e";
-        ctx.font = "800 44px Nunito, system-ui, sans-serif";
-        ctx.textAlign = "center";
-        ctx.fillText("your face", HOLE.x, HOLE.y - 40);
-        ctx.fillText("goes here", HOLE.x, HOLE.y + 14);
-    }
-    ctx.restore();
-
-    if (state.parts) {
-        ctx.drawImage(state.parts.body, 0, 0, SIZE, SIZE);
-    }
-    ctx.restore();
-
-    // little wordmark stamp
+    // wordmark stamp on the background layer
     ctx.fillStyle = "rgba(255,255,255,0.85)";
     roundRect(ctx, 36, 992, 196, 56, 28);
     ctx.fill();
@@ -482,6 +494,29 @@ function render() {
     ctx.font = "800 30px Nunito, system-ui, sans-serif";
     ctx.textAlign = "left";
     ctx.fillText("🐣 tochi me", 58, 1030);
+
+    // idle turntable sway + breathing, or the full dance
+    if (state.dancing) {
+        const p = poseAt(t - danceStart);
+        root.position.y = p.hop;
+        root.scale.set(p.sx, p.sy, p.sx);
+        root.rotation.z = p.sway;
+        root.rotation.y = 0.45 * Math.sin((t - danceStart) * 2.4);
+        if (wingLGroup) wingLGroup.rotation.z = -p.flap;
+        if (wingRGroup) wingRGroup.rotation.z = p.flap;
+    } else {
+        root.position.y = 0;
+        root.rotation.z = 0;
+        tilt += (tiltTarget - tilt) * 0.08; // chick gently turns to face your cursor
+        root.rotation.y = 0.22 * Math.sin(t * 0.55) + tilt;
+        const breathe = 1 + 0.012 * Math.sin(t * 1.8);
+        root.scale.set(1, breathe, 1);
+        if (wingLGroup) wingLGroup.rotation.z = -0.08 - 0.04 * Math.sin(t * 1.8);
+        if (wingRGroup) wingRGroup.rotation.z = 0.08 + 0.04 * Math.sin(t * 1.8);
+    }
+
+    renderer.render(scene, camera);
+    requestAnimationFrame(render);
 }
 
 function roundRect(g, x, y, w, h, r) {
@@ -492,13 +527,6 @@ function roundRect(g, x, y, w, h, r) {
     g.arcTo(x, y + h, x, y, r);
     g.arcTo(x, y, x + w, y, r);
     g.closePath();
-}
-
-// ---------- main loop (scenes are always animating) ----------
-
-function loop() {
-    render();
-    requestAnimationFrame(loop);
 }
 
 function setDancing(on) {
@@ -520,6 +548,7 @@ function loadPhoto(file) {
         state.photo = img;
         state.view = { x: 0, y: 0, zoom: 1.15 };
         document.getElementById("zoom").value = "1.15";
+        drawFace();
     };
     img.src = url;
 }
@@ -553,6 +582,7 @@ function loadDemoFace() {
     state.photo = d;
     state.view = { x: 0, y: 0, zoom: 1.15 };
     document.getElementById("zoom").value = "1.15";
+    drawFace();
 }
 
 // ---------- interactions ----------
@@ -562,6 +592,7 @@ document.getElementById("demo").addEventListener("click", loadDemoFace);
 
 document.getElementById("zoom").addEventListener("input", (e) => {
     state.view.zoom = parseFloat(e.target.value);
+    drawFace();
 });
 
 let drag = null;
@@ -576,6 +607,7 @@ canvas.addEventListener("pointermove", (e) => {
     state.view.x += (e.clientX - drag.x) * factor;
     state.view.y += (e.clientY - drag.y) * factor;
     drag = { x: e.clientX, y: e.clientY };
+    drawFace();
 });
 canvas.addEventListener("pointerup", () => (drag = null));
 canvas.addEventListener("pointercancel", () => (drag = null));
@@ -586,6 +618,7 @@ canvas.addEventListener("wheel", (e) => {
     const next = Math.min(3, Math.max(1, state.view.zoom * (e.deltaY < 0 ? 1.05 : 0.95)));
     state.view.zoom = next;
     document.getElementById("zoom").value = String(next);
+    drawFace();
 }, { passive: false });
 
 ["dragenter", "dragover"].forEach((ev) =>
@@ -601,6 +634,12 @@ canvas.addEventListener("wheel", (e) => {
     })
 );
 stage.addEventListener("drop", (e) => loadPhoto(e.dataTransfer.files[0]));
+
+stage.addEventListener("mousemove", (e) => {
+    const r = stage.getBoundingClientRect();
+    tiltTarget = ((e.clientX - r.left) / r.width - 0.5) * 0.7;
+});
+stage.addEventListener("mouseleave", () => (tiltTarget = 0));
 
 window.addEventListener("paste", (e) => {
     const item = [...(e.clipboardData?.items || [])].find((i) => i.type.startsWith("image/"));
@@ -630,7 +669,12 @@ function buildSwatches(containerId, items, isSelected, onPick) {
 // ---------- download + confetti ----------
 
 document.getElementById("download").addEventListener("click", () => {
-    canvas.toBlob((blob) => {
+    const ex = document.createElement("canvas");
+    ex.width = ex.height = SIZE;
+    const g = ex.getContext("2d");
+    g.drawImage(canvas, 0, 0);
+    g.drawImage(glCanvas, 0, 0);
+    ex.toBlob((blob) => {
         const a = document.createElement("a");
         a.href = URL.createObjectURL(blob);
         a.download = "tochi-me.png";
@@ -665,10 +709,10 @@ buildSwatches("bgs", BACKDROPS, (i) => i === state.backdrop, (i) => {
 });
 buildSwatches("chicks", VARIANTS, (i) => i === state.variant, (i) => {
     state.variant = i;
-    loadChicken();
+    buildChick();
 });
 
-loadChicken();
+buildChick();
 if (params.get("demo")) loadDemoFace();
 if (params.get("dance")) setDancing(true);
-loop();
+render();
