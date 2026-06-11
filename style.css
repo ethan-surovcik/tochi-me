@@ -167,6 +167,11 @@ input[type="range"] {
     cursor: pointer;
     padding: 0;
     transition: transform 0.1s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 17px;
+    line-height: 1;
 }
 
 .swatch:hover {
